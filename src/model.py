@@ -13,7 +13,7 @@ class model():
             for i in range(len(self.insent)):
                 encoder_emb_inp = tf.nn.embedding_lookup(self.w2v, self.insent[i][0])
         # Build RNN cell
-        encoder_cell = tf.nn.rnn_cell.BasicLSTMCell(num_units)
+        encoder_cell = tf.nn.rnn_cell.BasicLSTMCell(n_hidden)
 
         # Run Dynamic RNN
         #   encoder_outputs: [max_time, batch_size, num_units]
