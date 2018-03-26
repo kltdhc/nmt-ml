@@ -1,8 +1,9 @@
 import tensorflow as tf
 
 class model():
-    def __init__(self, num_input):
+    def __init__(self, num_input, w2v):
         self.insent = []
+        self.w2v = tf.Variable(w2v)
         for i in range(num_input):
             self.insent.append((
                 tf.placeholder(tf.int32, shape=[None, maxsenlen], name='in_sent_%d'%i),
