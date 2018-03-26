@@ -1,4 +1,5 @@
 import tensorflow as tf
+from decoder import BasicDecoder
 
 class model():
     def __init__(self, num_input, w2v, maxsenlen, n_hidden):
@@ -50,10 +51,27 @@ class model():
         decoder = BasicDecoder(
             cell, helper, input_state)
         # Dynamic decoding
-        outputs, _ = tf.contrib.seq2seq.dynamic_decode(
-            decoder, 
+        outputs, final_context_state, _ = tf.contrib.seq2seq.dynamic_decode(
+            my_decoder,
+            output_time_major=True,
+            swap_memory=True,
+            scope=decoder_scope)
+        sample_id = outputs.sample_id
+        logits = self.output_layer(outputs.rnn_output)
+        return logits, sample_id, final_context_state
+    
+    def build_multi_decoder(self, cells, input_states, scope):
+        helper = tf.contrib.seq2seq.GreedyEmbeddingHelper(
+            self.embedding_decoder, 2, 3)
+        my_decoder = BasicDecoder(
+            cells,
+            helper,
+            input_states,)
+        outputs, final_context_state, _ = tf.contrib.seq2seq.dynamic_decode(
+            my_decoder,
             output_time_major=True,
             swap_memory=True,
             scope=scope)
         logits = outputs.rnn_output
-    
+        sample_id = outputs.sample_id
+        return logits, sample_id, final_context_state

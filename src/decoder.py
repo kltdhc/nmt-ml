@@ -28,6 +28,7 @@ from tensorflow.python.framework import tensor_shape
 from tensorflow.python.layers import base as layers_base
 from tensorflow.python.ops import rnn_cell_impl
 from tensorflow.python.util import nest
+import tensorflow as tf
 
 
 __all__ = [
@@ -61,20 +62,20 @@ class BasicDecoder(decoder.Decoder):
     """
     for i in range(len(cells)):
         rnn_cell_impl.assert_like_rnncell("cell[%d]"%i, cells[i])
-        if not isinstance(helper[i], helper_py.Helper):
-            raise TypeError("helper[%d] must be a Helper, received: %s" % (i, type(helper)))
         if (output_layer is not None
             and not isinstance(output_layer, layers_base.Layer)):
             raise TypeError(
                 "output_layer must be a Layer, received: %s" % type(output_layer))
+    if not isinstance(helper, helper_py.Helper):
+        raise TypeError("helper must be a Helper, received: %s" % (type(helper)))
     self._cells = cells
-    self._helpers = helpers
+    self._helper = helper
     self._initial_states = initial_states
     self._output_layers = output_layers
 
   @property
   def batch_size(self):
-    return self._helpers[0].batch_size
+    return self._helper.batch_size
 
   def _rnn_output_size(self):
     size = self._cells[0].output_size
@@ -99,7 +100,7 @@ class BasicDecoder(decoder.Decoder):
     # Return the cell output and the id
     return BasicDecoderOutput(
         rnn_output=self._rnn_output_size(),
-        sample_id=self._helpers[0].sample_ids_shape)
+        sample_id=self._helper.sample_ids_shape)
 
   @property
   def output_dtype(self):
@@ -109,7 +110,7 @@ class BasicDecoder(decoder.Decoder):
     dtype = nest.flatten(self._initial_states[0]).dtype
     return BasicDecoderOutput(
         nest.map_structure(lambda _: dtype, self._rnn_output_size()),
-        self._helpers[0].sample_ids_dtype)
+        self._helper.sample_ids_dtype)
 
   def initialize(self, name=None):
     """Initialize the decoder.
@@ -122,33 +123,36 @@ class BasicDecoder(decoder.Decoder):
     """
     rt = []
     for i in range(len(self._helpers)):
-        rt.append(self._helpers[i].initialize() + (self._initial_states[i],))
+        rt.append(self._helper.initialize() + (self._initial_states[i],))
     return rt
 
-  def step(self, time, inputs, state, name=None):
-    """Perform a decoding step.
+  def step(self, time, inputs, states, name=None):
+      """Perform a decoding step.
 
-    Args:
-      time: scalar `int32` tensor.
-      inputs: A (structure of) input tensors.
-      state: A (structure of) state tensors and TensorArrays.
-      name: Name scope for any created operations.
+      Args:
+        time: scalar `int32` tensor.
+        inputs: A (structure of) input tensors.
+        state: A (structure of) state tensors and TensorArrays.
+        name: Name scope for any created operations.
 
-    Returns:
-      `(outputs, next_state, next_inputs, finished)`.
-    """
-
-    with ops.name_scope(name, "BasicDecoderStep", (time, inputs, state)):
-        for i in range(len(self._cells)):
-            cell_outputs, cell_state = self._cells[i](inputs, state)
-      if self._output_layer is not None:
-        cell_outputs = self._output_layer(cell_outputs)
-      sample_ids = self._helper.sample(
-          time=time, outputs=cell_outputs, state=cell_state)
-      (finished, next_inputs, next_state) = self._helper.next_inputs(
-          time=time,
-          outputs=cell_outputs,
-          state=cell_state,
-          sample_ids=sample_ids)
-    outputs = BasicDecoderOutput(cell_outputs, sample_ids)
-    return (outputs, next_state, next_inputs, finished)
+      Returns:
+        `(outputs, next_state, next_inputs, finished)`.
+      """
+      outputs = []
+      nstates = []
+      with tf.variable_scope("MultiDecoderScope"):
+          for i in range(len(self._cells)):
+              cell_outputs, cell_state = self._cells[i](inputs, states[i])
+              if self._output_layers is not None:
+                  cell_outputs = self._output_layers[i](cell_outputs)
+              outputs.append(cell_outputs)
+              nstates.append(cell_state)
+          outputs = tf.add_n(outputs)
+          sample_ids = self._helper.sample(time=time, outputs=outputs, state=cell_state)
+          (finished, next_inputs, next_state) = self._helper.next_inputs(
+              time=time,
+              outputs=outputs,
+              states=nstates,
+              sample_ids=sample_ids)
+          outputs = BasicDecoderOutput(outputs, sample_ids)
+      return (outputs, next_state, next_inputs, finished)
