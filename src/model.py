@@ -15,8 +15,8 @@ class model():
             len(w2v), use_bias=False, name="output_projection") for _ in range(num_input)]
         for i in range(num_input):
             self.insent.append((
-                tf.placeholder(tf.int32, shape=[None, maxsenlen], name='in_sent_%d'%i),
-                tf.placeholder(tf.int32, shape=[None], name='in_sent_len_%d'%i)))
+                tf.placeholder(tf.int32, shape=[self.batch_size, maxsenlen], name='in_sent_%d'%i),
+                tf.placeholder(tf.int32, shape=[self.batch_size], name='in_sent_len_%d'%i)))
             # self.intar.append((
             #     tf.placeholder(tf.int32, shape=[None, maxsenlen], name='in_tar_%d'%i),
             #     tf.placeholder(tf.int32, shape=[None], name='in_tar_len_%d'%i)))
