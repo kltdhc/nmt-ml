@@ -23,6 +23,7 @@ class model():
         
         emb_inputs = []
         with tf.device('/cpu:0'), tf.variable_scope('embedding'):
+            tar_input = tf.nn.embedding_lookup(self.w2v, self.inans)
             for i in range(len(self.insent)):
                 emb_inputs.append(tf.nn.embedding_lookup(self.w2v, self.insent[i][0]))
         
@@ -41,7 +42,7 @@ class model():
             cell = self.build_decoder_cells(encoders_out[i], self.insent[i][1], n_hidden, i)
             self.cells.append(cell)
             logits, sample_id, final_context_state = self.build_single_decoder(
-                cell, encoders[i], self.inans, self.inans_len, self.output_layers[i], "decoder%d"%i)
+                cell, encoders[i], tar_input, self.inans_len, self.output_layers[i], "decoder%d"%i)
             self.train_outputs.append(sample_id)
             crossent = tf.nn.sparse_softmax_cross_entropy_with_logits(
                 labels=logits, logits=self.inans)
@@ -97,7 +98,7 @@ class model():
         # Helper
         with tf.variable_scope(scope):
             helper = tf.contrib.seq2seq.TrainingHelper(
-                tar_in, tar_len, time_major=True)
+                tar_in, tar_len)
             # Decoder
             decoder_initial_state = cell.zero_state(self.batch_size, tf.float32).clone(
                 cell_state=input_state)
