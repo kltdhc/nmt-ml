@@ -27,15 +27,18 @@ class model():
                 emb_inputs.append(tf.nn.embedding_lookup(self.w2v, self.insent[i][0]))
         
         encoders = []
+        encoders_out = []
         for i in range(len(self.insent)):
-            encoders.append(self.build_encoder(emb_inputs[i], self.insent[i][1], n_hidden, i))
+            encoder_out, encoder_state = self.build_encoder(emb_inputs[i], self.insent[i][1], n_hidden, i)
+            encoders_out.append(encoder_out)
+            encoders.append(encoder_state)
 
         self.cells = []
         self.steps = []
         self.losses = []
         self.train_outputs = []
         for i in range(len(self.insent)):
-            cell = self.build_decoder_cells(encoders[i], self.insent[i][1], n_hidden, i)
+            cell = self.build_decoder_cells(encoders_out[i], self.insent[i][1], n_hidden, i)
             self.cells.append(cell)
             logits, sample_id, final_context_state = self.build_single_decoder(
                 cell, encoders[i], self.inans, self.inans_len, self.output_layers[i], "decoder%d"%i)
@@ -70,9 +73,9 @@ class model():
             encoder_outputs, encoder_state = tf.nn.dynamic_rnn(
                 encoder_cell, input_s,
                 sequence_length=inlen, dtype=tf.float32)
-            return encoder_state
+            return encoder_outputs, encoder_state
 
-    def build_decoder_cells(self, input_state, inlen, n_hidden, i):
+    def build_decoder_cells(self, encoder_out, inlen, n_hidden, i):
         # Build RNN cell
         # attention_states: [batch_size, max_time, num_units]
         with tf.variable_scope('build_decoder_%d'%i):
@@ -82,6 +85,7 @@ class model():
             cell = tf.nn.rnn_cell.BasicLSTMCell(n_hidden)
             attention_mechanism = tf.contrib.seq2seq.LuongAttention(
                 n_hidden, 
+                encoder_out,
                 memory_sequence_length=inlen, 
                 scale=True)
 
