@@ -79,7 +79,7 @@ class BasicDecoder(decoder.Decoder):
 
   def _rnn_output_size(self):
     size = self._cells[0].output_size
-    if self._output_layer is None:
+    if self._output_layers is None:
       return size
     else:
       # To use layer's compute_output_shape, we need to convert the

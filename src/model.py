@@ -35,7 +35,7 @@ class model():
         self.losses = []
         self.train_outputs = []
         for i in range(len(self.insent)):
-            cell = self.build_decoder_cells(encoders[i], n_hidden)
+            cell = self.build_decoder_cells(encoders[i], self.insent[i][1], n_hidden)
             self.cells.append(cell)
             logits, sample_id, final_context_state = self.build_single_decoder(
                 cell, encoders[i], self.inans, self.inans_len, self.output_layers[i], "decoder%d"%i)
@@ -49,11 +49,11 @@ class model():
             self.losses.append(train_loss)
             params = tf.trainable_variables()
             gradients = tf.gradients(train_loss, params)
-            clipped_gradients, _ = tf.clip_by_global_norm(
-                gradients, max_gradient_norm)
+            # clipped_gradients, _ = tf.clip_by_global_norm(
+            #     gradients, max_gradient_norm)
             optimizer = tf.train.AdamOptimizer(learning_rate)
             update_step = optimizer.apply_gradients(
-                zip(clipped_gradients, params))
+                zip(gradients, params))
             self.steps.append(update_step)
         
         # multilayer decoder
@@ -71,7 +71,7 @@ class model():
             sequence_length=inlen, time_major=True)
         return encoder_state
 
-    def build_decoder_cells(self, input_state, n_hidden):
+    def build_decoder_cells(self, input_state, inlen, n_hidden):
         # Build RNN cell
         # attention_states: [batch_size, max_time, num_units]
         attention_states = tf.transpose(input_state, [1, 0, 2])
@@ -79,7 +79,7 @@ class model():
         # Create an attention mechanism
         attention_mechanism = tf.contrib.seq2seq.LuongAttention(
             n_hidden, attention_states,
-            memory_sequence_length=source_sequence_length, 
+            memory_sequence_length=inlen, 
             scale=True)
         cell = tf.nn.rnn_cell.BasicLSTMCell(n_hidden)
 
@@ -112,7 +112,7 @@ class model():
             cells,
             helper,
             input_states,
-            output_layer=output_layers)
+            output_layers=output_layers)
         outputs, final_context_state, _ = tf.contrib.seq2seq.dynamic_decode(
             my_decoder,
             output_time_major=True,
@@ -145,7 +145,6 @@ class model():
     def get_test_batch(self, batch_no, in_sens, in_sens_len):
         num_zero = self.batch_size - len(in_sens[batch_no*self.batch_size:(1+batch_no)*self.batch_size])
         empty_s = [0. for i in range(len(in_sens[0]))]
-        empty_a = [0. for i in range(len(in_ans[0]))]
         feed_dict = {}
         for num_model in range(len(in_sens)):
             feed_dict[self.insent[num_model][0]] = \
@@ -158,17 +157,17 @@ class model():
         batch_num = len(in_sens) // self.batch_size
         all_loss = 0
         for i in range(batch_num):
-            feed_dict = get_train_batch(i, num_model, in_sens, in_sens_len, in_ans, in_ans_len)
+            feed_dict = self.get_train_batch(i, num_model, in_sens, in_sens_len, in_ans, in_ans_len)
             loss = sess.run([self.losses[i], self.steps[i]], feed_dict=feed_dict)
             all_loss += loss
         loss /= batch_num
 
-    def test(self, sess, num_model, in_sens, in_sens_len):
+    def test(self, sess, in_sens, in_sens_len):
         batch_num = len(in_sens) // self.batch_size
         all_ans = []
         all_logits = []
         for i in range(batch_num):
-            feed_dict = get_test_batch(i, num_model, in_sens, in_sens_len)
+            feed_dict = self.get_test_batch(i, in_sens, in_sens_len)
             logits, ids = sess.run([self.test_logits, self.test_sample_id], feed_dict=feed_dict)
             all_ans += list(ids)
             all_logits += list(logits)
