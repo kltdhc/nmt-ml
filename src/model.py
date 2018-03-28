@@ -79,11 +79,13 @@ class model():
             # attention_states = tf.transpose(input_state, [1, 0, 2])
 
             # Create an attention mechanism
+            cell = tf.nn.rnn_cell.BasicLSTMCell(n_hidden)
+            decoder_initial_state = cell.zero_state(self.batch_size, tf.float32).clone(
+                cell_state=input_state)
             attention_mechanism = tf.contrib.seq2seq.LuongAttention(
-                n_hidden, input_state,
+                n_hidden, decoder_initial_state,
                 memory_sequence_length=inlen, 
                 scale=True)
-            cell = tf.nn.rnn_cell.BasicLSTMCell(n_hidden)
 
             return tf.contrib.seq2seq.AttentionWrapper(
                 cell, attention_mechanism,
