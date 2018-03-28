@@ -8,7 +8,7 @@ class model():
         self.inans = tf.placeholder(tf.int32, shape=[None, maxanslen], name='in_ans')
         self.inans_len = tf.placeholder(tf.int32, shape=[None], name='in_sent_len')
         self.batch_size = batch_size
-        self.w2v = tf.concat([tf.cast(tf.constant([[0. for _ in range(len(w2v[0]))]]), tf.float64), tf.Variable(w2v[1:])], axis=0)
+        self.w2v = tf.concat([tf.cast(tf.constant([[0. for _ in range(len(w2v[0]))]]), tf.float32), tf.cast(tf.Variable(w2v[1:]), tf.float32)], axis=0)
         self.maxsenlen = maxsenlen
         self.maxanslen = maxanslen
         self.output_layers = [layers_core.Dense(
@@ -69,7 +69,7 @@ class model():
             #   encoder_state: [batch_size, num_units]
             encoder_outputs, encoder_state = tf.nn.dynamic_rnn(
                 encoder_cell, input_s,
-                sequence_length=inlen, time_major=True, dtype=tf.float64)
+                sequence_length=inlen, time_major=True, dtype=tf.float32)
             return encoder_state
 
     def build_decoder_cells(self, input_state, inlen, n_hidden, i):
