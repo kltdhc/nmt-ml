@@ -12,7 +12,7 @@ class model():
         self.maxsenlen = maxsenlen
         self.maxanslen = maxanslen
         self.output_layers = [layers_core.Dense(
-            len(self.w2v), use_bias=False, name="output_projection") for _ in range(num_input)]
+            len(w2v), use_bias=False, name="output_projection") for _ in range(num_input)]
         for i in range(num_input):
             self.insent.append((
                 tf.placeholder(tf.int32, shape=[None, maxsenlen], name='in_sent_%d'%i),
