@@ -68,7 +68,7 @@ class model():
         #   encoder_state: [batch_size, num_units]
         encoder_outputs, encoder_state = tf.nn.dynamic_rnn(
             encoder_cell, input_s,
-            sequence_length=inlen, time_major=True)
+            sequence_length=inlen, time_major=True, dtype=tf.float64)
         return encoder_state
 
     def build_decoder_cells(self, input_state, inlen, n_hidden):
