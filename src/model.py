@@ -47,7 +47,7 @@ class model():
             crossent = tf.nn.sparse_softmax_cross_entropy_with_logits(
                 logits=logits, labels=self.inans)
             target_weights = tf.sequence_mask(
-                self.inans_len, maxanslen, dtype=self.inans.dtype)
+                self.inans_len, maxanslen, dtype=logits.dtype)
             train_loss = (tf.reduce_sum(crossent * target_weights) /
                 self.batch_size)
             self.losses.append(train_loss)
