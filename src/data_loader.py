@@ -1,4 +1,5 @@
 import numpy as np
+from model import model as Model
 
 def build_vocab(sents, vocab=None, vocab_dict=None, add_word=True, fix_maxlen=None):
     if vocab is None and vocab_dict is not None:
@@ -125,4 +126,4 @@ def main():
     test_qsent, test_qlen, test_asent, test_alen, vocab, vocab_dict = \
         read_dev_test_set('test', dirs, vocab, vocab_dict, qmaxlen, amaxlen)
     w2v = build_vocab_matrix(vocab, vocab_dict)
-    
+    model = Model(len(dirs), np.array(w2v), qmaxlen, amaxlen)

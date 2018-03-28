@@ -28,14 +28,14 @@ class model():
         
         encoders = []
         for i in range(len(self.insent)):
-            encoders.append(self.build_encoder(emb_inputs[i], self.insent[i][1], n_hidden))
+            encoders.append(self.build_encoder(emb_inputs[i], self.insent[i][1], n_hidden, i))
 
         self.cells = []
         self.steps = []
         self.losses = []
         self.train_outputs = []
         for i in range(len(self.insent)):
-            cell = self.build_decoder_cells(encoders[i], self.insent[i][1], n_hidden)
+            cell = self.build_decoder_cells(encoders[i], self.insent[i][1], n_hidden, i)
             self.cells.append(cell)
             logits, sample_id, final_context_state = self.build_single_decoder(
                 cell, encoders[i], self.inans, self.inans_len, self.output_layers[i], "decoder%d"%i)
@@ -59,50 +59,53 @@ class model():
         # multilayer decoder
         self.test_logits, self.test_sample_id, final_context_state = self.build_multi_decoder(self.cells, encoders, self.output_layers, "ml_decoder")
 
-    def build_encoder(self, input_s, inlen, n_hidden):
-        # Build RNN cell
-        encoder_cell = tf.nn.rnn_cell.BasicLSTMCell(n_hidden)
+    def build_encoder(self, input_s, inlen, n_hidden, i):
+        with tf.variable_scope('build_encoder_%d'%i):
+            # Build RNN cell
+            encoder_cell = tf.nn.rnn_cell.BasicLSTMCell(n_hidden)
 
-        # Run Dynamic RNN
-        #   encoder_outputs: [max_time, batch_size, num_units]
-        #   encoder_state: [batch_size, num_units]
-        encoder_outputs, encoder_state = tf.nn.dynamic_rnn(
-            encoder_cell, input_s,
-            sequence_length=inlen, time_major=True, dtype=tf.float64)
-        return encoder_state
+            # Run Dynamic RNN
+            #   encoder_outputs: [max_time, batch_size, num_units]
+            #   encoder_state: [batch_size, num_units]
+            encoder_outputs, encoder_state = tf.nn.dynamic_rnn(
+                encoder_cell, input_s,
+                sequence_length=inlen, time_major=True, dtype=tf.float64)
+            return encoder_state
 
-    def build_decoder_cells(self, input_state, inlen, n_hidden):
+    def build_decoder_cells(self, input_state, inlen, n_hidden, i):
         # Build RNN cell
         # attention_states: [batch_size, max_time, num_units]
-        attention_states = tf.transpose(input_state, [1, 0, 2])
+        with tf.variable_scope('build_decoder_%d'%i):
+            attention_states = tf.transpose(input_state, [1, 0, 2])
 
-        # Create an attention mechanism
-        attention_mechanism = tf.contrib.seq2seq.LuongAttention(
-            n_hidden, attention_states,
-            memory_sequence_length=inlen, 
-            scale=True)
-        cell = tf.nn.rnn_cell.BasicLSTMCell(n_hidden)
+            # Create an attention mechanism
+            attention_mechanism = tf.contrib.seq2seq.LuongAttention(
+                n_hidden, attention_states,
+                memory_sequence_length=inlen, 
+                scale=True)
+            cell = tf.nn.rnn_cell.BasicLSTMCell(n_hidden)
 
-        return tf.contrib.seq2seq.AttentionWrapper(
-            cell, attention_mechanism,
-            attention_layer_size=n_hidden)
+            return tf.contrib.seq2seq.AttentionWrapper(
+                cell, attention_mechanism,
+                attention_layer_size=n_hidden)
 
     def build_single_decoder(self, cell, input_state, tar_in, tar_len, output_layer, scope):
         # Helper
-        helper = tf.contrib.seq2seq.TrainingHelper(
-            tar_in, tar_len, time_major=True)
-        # Decoder
-        decoder = tf.contrib.seq2seq.BasicDecoder(
-            cell, helper, input_state, output_layer=output_layer)
-        # Dynamic decoding
-        outputs, final_context_state, _ = tf.contrib.seq2seq.dynamic_decode(
-            decoder,
-            output_time_major=True,
-            swap_memory=True,
-            scope=scope)
-        sample_id = outputs.sample_id
-        # logits = self.output_layer(outputs.rnn_output)
-        logits = outputs.rnn_output
+        with tf.variable_scope(scope):
+            helper = tf.contrib.seq2seq.TrainingHelper(
+                tar_in, tar_len, time_major=True)
+            # Decoder
+            decoder = tf.contrib.seq2seq.BasicDecoder(
+                cell, helper, input_state, output_layer=output_layer)
+            # Dynamic decoding
+            outputs, final_context_state, _ = tf.contrib.seq2seq.dynamic_decode(
+                decoder,
+                output_time_major=True,
+                swap_memory=True,
+                scope=scope)
+            sample_id = outputs.sample_id
+            # logits = self.output_layer(outputs.rnn_output)
+            logits = outputs.rnn_output
         return logits, sample_id, final_context_state
     
     def build_multi_decoder(self, cells, input_states, output_layers, scope):
