@@ -8,7 +8,7 @@ class model():
         self.inans = tf.placeholder(tf.int32, shape=[None, maxanslen], name='in_ans')
         self.inans_len = tf.placeholder(tf.int32, shape=[None], name='in_sent_len')
         self.batch_size = batch_size
-        self.w2v = tf.Variable(w2v)
+        self.w2v = tf.concat([tf.constant(tf.zeros([1, len(w2v[0])])), tf.Variable(w2v[1:])], axis=-1)
         self.maxsenlen = maxsenlen
         self.maxanslen = maxanslen
         self.output_layers = [layers_core.Dense(
@@ -30,21 +30,23 @@ class model():
         for i in range(len(self.insent)):
             encoders.append(self.build_encoder(emb_inputs[i], self.insent[i][1], n_hidden))
 
-        decoder = []
         self.cells = []
         self.steps = []
+        self.losses = []
+        self.train_outputs = []
         for i in range(len(self.insent)):
             cell = self.build_decoder_cells(encoders[i], n_hidden)
             self.cells.append(cell)
             logits, sample_id, final_context_state = self.build_single_decoder(
                 cell, encoders[i], self.inans, self.inans_len, self.output_layers[i], "decoder%d"%i)
-            decoder.append(sample_id)
+            self.train_outputs.append(sample_id)
             crossent = tf.nn.sparse_softmax_cross_entropy_with_logits(
                 labels=logits, logits=self.inans)
             target_weights = tf.sequence_mask(
                 self.inans_len, maxanslen, dtype=self.inans.dtype)
             train_loss = (tf.reduce_sum(crossent * target_weights) /
                 self.batch_size)
+            self.losses.append(train_loss)
             params = tf.trainable_variables()
             gradients = tf.gradients(train_loss, params)
             clipped_gradients, _ = tf.clip_by_global_norm(
@@ -77,7 +79,8 @@ class model():
         # Create an attention mechanism
         attention_mechanism = tf.contrib.seq2seq.LuongAttention(
             n_hidden, attention_states,
-            memory_sequence_length=source_sequence_length)
+            memory_sequence_length=source_sequence_length, 
+            scale=True)
         cell = tf.nn.rnn_cell.BasicLSTMCell(n_hidden)
 
         return tf.contrib.seq2seq.AttentionWrapper(
@@ -119,3 +122,54 @@ class model():
         logits = outputs.rnn_output
         sample_id = outputs.sample_id
         return logits, sample_id, final_context_state
+
+    def train_all(self, sess, in_sens, in_sens_len, in_ans, in_ans_len):
+        for i in range(len(in_sens)):
+            self.train(sess, i, in_sens[i], in_sens_len[i], in_ans, in_ans_len)
+
+    def get_train_batch(self, batch_no, num_model, in_sens, in_sens_len, in_ans, in_ans_len):
+        num_zero = self.batch_size - len(in_sens[batch_no*self.batch_size:(1+batch_no)*self.batch_size])
+        empty_s = [0. for i in range(len(in_sens[0]))]
+        empty_a = [0. for i in range(len(in_ans[0]))]
+        feed_dict = {}
+        feed_dict[self.insent[num_model][0]] = \
+            in_sens[batch_no*self.batch_size:(1+batch_no)*self.batch_size] + [empty_s for i in range(num_zero)]
+        feed_dict[self.insent[num_model][1]] = \
+            in_sens_len[batch_no*self.batch_size:(1+batch_no)*self.batch_size] + [0 for i in range(num_zero)]
+        feed_dict[self.inans] = \
+            in_ans[batch_no*self.batch_size:(1+batch_no)*self.batch_size] + [empty_s for i in range(num_zero)]
+        feed_dict[self.inans_len] = \
+            in_ans_len[batch_no*self.batch_size:(1+batch_no)*self.batch_size] + [0 for i in range(num_zero)]
+        return feed_dict
+    
+    def get_test_batch(self, batch_no, in_sens, in_sens_len):
+        num_zero = self.batch_size - len(in_sens[batch_no*self.batch_size:(1+batch_no)*self.batch_size])
+        empty_s = [0. for i in range(len(in_sens[0]))]
+        empty_a = [0. for i in range(len(in_ans[0]))]
+        feed_dict = {}
+        for num_model in range(len(in_sens)):
+            feed_dict[self.insent[num_model][0]] = \
+                in_sens[num_model][batch_no*self.batch_size:(1+batch_no)*self.batch_size] + [empty_s for i in range(num_zero)]
+            feed_dict[self.insent[num_model][1]] = \
+                in_sens_len[num_model][batch_no*self.batch_size:(1+batch_no)*self.batch_size] + [0 for i in range(num_zero)]
+        return feed_dict
+
+    def train(self, sess, num_model, in_sens, in_sens_len, in_ans, in_ans_len):
+        batch_num = len(in_sens) // self.batch_size
+        all_loss = 0
+        for i in range(batch_num):
+            feed_dict = get_train_batch(i, num_model, in_sens, in_sens_len, in_ans, in_ans_len)
+            loss = sess.run([self.losses[i], self.steps[i]], feed_dict=feed_dict)
+            all_loss += loss
+        loss /= batch_num
+
+    def test(self, sess, num_model, in_sens, in_sens_len):
+        batch_num = len(in_sens) // self.batch_size
+        all_ans = []
+        all_logits = []
+        for i in range(batch_num):
+            feed_dict = get_test_batch(i, num_model, in_sens, in_sens_len)
+            logits, ids = sess.run([self.test_logits, self.test_sample_id], feed_dict=feed_dict)
+            all_ans += list(ids)
+            all_logits += list(logits)
+        return all_ans, all_logits
