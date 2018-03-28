@@ -53,6 +53,7 @@ class model():
             self.losses.append(train_loss)
             params = tf.trainable_variables()
             gradients = tf.gradients(train_loss, params)
+            print(gradients)
             clipped_gradients, _ = tf.clip_by_global_norm(
                 gradients, max_gradient_norm)
             optimizer = tf.train.AdamOptimizer(learning_rate)
