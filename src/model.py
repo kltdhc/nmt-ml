@@ -3,7 +3,7 @@ from decoder import BasicDecoder
 from tensorflow.python.layers import core as layers_core
 
 class model():
-    def __init__(self, num_input, w2v, maxsenlen, maxanslen, n_hidden=512, batch_size=32, learning_rate=0.1):
+    def __init__(self, num_input, w2v, maxsenlen, maxanslen, n_hidden=512, batch_size=32, learning_rate=0.1, max_gradient_norm=5.):
         self.insent = []
         self.inans = tf.placeholder(tf.int32, shape=[None, maxanslen], name='in_ans')
         self.inans_len = tf.placeholder(tf.int32, shape=[None], name='in_sent_len')
@@ -49,11 +49,11 @@ class model():
             self.losses.append(train_loss)
             params = tf.trainable_variables()
             gradients = tf.gradients(train_loss, params)
-            # clipped_gradients, _ = tf.clip_by_global_norm(
-            #     gradients, max_gradient_norm)
+            clipped_gradients, _ = tf.clip_by_global_norm(
+                gradients, max_gradient_norm)
             optimizer = tf.train.AdamOptimizer(learning_rate)
             update_step = optimizer.apply_gradients(
-                zip(gradients, params))
+                zip(clipped_gradients, params))
             self.steps.append(update_step)
         
         # multilayer decoder
