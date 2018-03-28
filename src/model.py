@@ -8,7 +8,7 @@ class model():
         self.inans = tf.placeholder(tf.int32, shape=[None, maxanslen], name='in_ans')
         self.inans_len = tf.placeholder(tf.int32, shape=[None], name='in_sent_len')
         self.batch_size = batch_size
-        self.w2v = tf.concat([tf.cast(tf.constant([[0. for _ in range(len(w2v[0]))]]), tf.float32), tf.cast(tf.Variable(w2v[1:]), tf.float32)], axis=0)
+        self.w2v = tf.concat([tf.constant([[0. for _ in range(len(w2v[0]))]]), tf.Variable(w2v[1:], dtype=tf.float32)], axis=0)
         self.maxsenlen = maxsenlen
         self.maxanslen = maxanslen
         self.output_layers = [layers_core.Dense(
@@ -53,7 +53,7 @@ class model():
             self.losses.append(train_loss)
             params = tf.trainable_variables()
             gradients = tf.gradients(train_loss, params)
-            print(gradients)
+            # print(gradients)
             clipped_gradients, _ = tf.clip_by_global_norm(
                 gradients, max_gradient_norm)
             optimizer = tf.train.AdamOptimizer(learning_rate)
