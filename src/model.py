@@ -95,7 +95,7 @@ class model():
             helper = tf.contrib.seq2seq.TrainingHelper(
                 tar_in, tar_len, time_major=True)
             # Decoder
-            decoder_initial_state = cell.zero_state(self.batch_size, dtype).clone(
+            decoder_initial_state = cell.zero_state(self.batch_size, tf.float32).clone(
                 cell_state=input_state)
             decoder = tf.contrib.seq2seq.BasicDecoder(
                 cell, helper, decoder_initial_state, output_layer=output_layer)
@@ -113,7 +113,7 @@ class model():
     def build_multi_decoder(self, cells, input_states, output_layers, scope):
         helper = tf.contrib.seq2seq.GreedyEmbeddingHelper(
             self.w2v, tf.fill([self.batch_size], 2), 3)
-        decoder_initial_states = [cell.zero_state(self.batch_size, dtype).clone(
+        decoder_initial_states = [cell.zero_state(self.batch_size, tf.float32).clone(
                 cell_state=input_state) for cell, input_state in zip(cells, input_states)]
         my_decoder = BasicDecoder(
             cells,
