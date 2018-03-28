@@ -69,18 +69,18 @@ class model():
             #   encoder_state: [batch_size, num_units]
             encoder_outputs, encoder_state = tf.nn.dynamic_rnn(
                 encoder_cell, input_s,
-                sequence_length=inlen, time_major=True, dtype=tf.float32)
+                sequence_length=inlen, dtype=tf.float32)
             return encoder_state
 
     def build_decoder_cells(self, input_state, inlen, n_hidden, i):
         # Build RNN cell
         # attention_states: [batch_size, max_time, num_units]
         with tf.variable_scope('build_decoder_%d'%i):
-            attention_states = tf.transpose(input_state, [1, 0, 2])
+            # attention_states = tf.transpose(input_state, [1, 0, 2])
 
             # Create an attention mechanism
             attention_mechanism = tf.contrib.seq2seq.LuongAttention(
-                n_hidden, attention_states,
+                n_hidden, input_state,
                 memory_sequence_length=inlen, 
                 scale=True)
             cell = tf.nn.rnn_cell.BasicLSTMCell(n_hidden)
@@ -102,7 +102,7 @@ class model():
             # Dynamic decoding
             outputs, final_context_state, _ = tf.contrib.seq2seq.dynamic_decode(
                 decoder,
-                output_time_major=True,
+                # output_time_major=True,
                 swap_memory=True,
                 scope=scope)
             sample_id = outputs.sample_id
@@ -123,7 +123,7 @@ class model():
         
         outputs, final_context_state, _ = tf.contrib.seq2seq.dynamic_decode(
             my_decoder,
-            output_time_major=True,
+            # output_time_major=True,
             swap_memory=True,
             maximum_iterations=self.maxanslen,
             scope=scope)
