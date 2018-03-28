@@ -75,9 +75,9 @@ def read_input(files):
     return rt, maxlen
 
 def read_trainset(dirs):
-    train_q, qmaxlen = read_input([i+'/train.q' for i in dirs])
+    train_q, qmaxlen = read_input(['../data/'+i+'/train.q' for i in dirs])
     qmaxlen += 10
-    train_a, amaxlen = read_input([i+'/train.a' for i in dirs])
+    train_a, amaxlen = read_input(['../data/'+i+'/train.a' for i in dirs])
     amaxlen += 10
     train_qsent = []
     train_qlen = []
@@ -96,7 +96,7 @@ def read_trainset(dirs):
     return train_qsent, train_qlen, train_asent, train_alen, vocab, vocab_dict, qmaxlen, amaxlen
 
 def read_dev_test_set(name, dirs, vocab, vocab_dict, qmaxlen, amaxlen, read_ans=True):
-    test_q, _ = read_input([i+'/'+name+'.q' for i in dirs])
+    test_q, _ = read_input(['../data/'+i+'/'+name+'.q' for i in dirs])
     test_qsent = []
     test_qlen = []
     for i in test_q:
@@ -104,7 +104,7 @@ def read_dev_test_set(name, dirs, vocab, vocab_dict, qmaxlen, amaxlen, read_ans=
         test_qsent.append(cut_sents)
         test_qlen.append(cut_len)
     if read_ans:
-        test_a, _ = read_input([i+'/'+name+'.a' for i in dirs])
+        test_a, _ = read_input(['../data/'+i+'/'+name+'.a' for i in dirs])
         test_asent = []
         test_alen = []
         for i in test_a:
