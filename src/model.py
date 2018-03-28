@@ -45,7 +45,7 @@ class model():
                 cell, encoders[i], tar_input, self.inans_len, self.output_layers[i], "decoder%d"%i)
             self.train_outputs.append(sample_id)
             crossent = tf.nn.sparse_softmax_cross_entropy_with_logits(
-                labels=logits, logits=self.inans)
+                logits=logits, labels=self.inans)
             target_weights = tf.sequence_mask(
                 self.inans_len, maxanslen, dtype=self.inans.dtype)
             train_loss = (tf.reduce_sum(crossent * target_weights) /
