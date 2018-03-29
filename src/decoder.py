@@ -61,7 +61,7 @@ class BasicDecoder(decoder.Decoder):
       TypeError: if `cell`, `helper` or `output_layer` have an incorrect type.
     """
     for i in range(len(cells)):
-        rnn_cell_impl.assert_like_rnncell("cell[%d]"%i, cells[i])
+        # rnn_cell_impl.assert_like_rnncell("cell[%d]"%i, cells[i])
         if (output_layers is not None
             and not isinstance(output_layers[i], layers_base.Layer)):
             raise TypeError(
