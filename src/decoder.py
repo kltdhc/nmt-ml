@@ -121,10 +121,10 @@ class BasicDecoder(decoder.Decoder):
     Returns:
       `(finished, first_inputs, initial_state)`.
     """
-    rt = []
-    for i in range(len(self._initial_states)):
-        rt.append(self._helper.initialize() + (self._initial_states[i],))
-    return rt
+    # rt = []
+    # for i in range(len(self._initial_states)):
+    #     rt.append(self._helper.initialize() + (self._initial_states[i],))
+    return self._helper.initialize() + (self._initial_states,)
 
   def step(self, time, inputs, states, name=None):
       """Perform a decoding step.
