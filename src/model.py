@@ -194,4 +194,4 @@ class model():
             else:
                 all_ans = np.concatenate((all_ans, ids), axis=0)
                 all_logits = np.concatenate((all_logits, logits), axis=0)
-        return all_ans.tolist()[:len(in_sens)], all_logits.tolist()[:len(in_sens)]
+        return all_ans.tolist()[:len(in_sens[0])], all_logits.tolist()[:len(in_sens[0])]
