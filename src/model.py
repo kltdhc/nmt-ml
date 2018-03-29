@@ -111,6 +111,7 @@ class model():
                 decoder,
                 # output_time_major=True,
                 swap_memory=True,
+                maximum_iterations=self.maxanslen,
                 scope=scope)
             sample_id = outputs.sample_id
             # logits = self.output_layer(outputs.rnn_output)
