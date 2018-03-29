@@ -107,7 +107,7 @@ class BasicDecoder(decoder.Decoder):
     # Assume the dtype of the cell is the output_size structure
     # containing the input_state's first component's dtype.
     # Return that structure and the sample_ids_dtype from the helper.
-    dtype = nest.flatten(self._initial_states[0]).dtype
+    dtype = nest.flatten(self._initial_states[0])[0].dtype
     return BasicDecoderOutput(
         nest.map_structure(lambda _: dtype, self._rnn_output_size()),
         self._helper.sample_ids_dtype)
