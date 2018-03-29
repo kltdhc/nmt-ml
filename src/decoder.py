@@ -144,7 +144,7 @@ class BasicDecoder(decoder.Decoder):
       ninputs = []
       with tf.variable_scope("MultiDecoderScope"):
           for i in range(len(self._cells)):
-              cell_outputs, cell_state = self._cells[i](inputs[i], states[i])
+              cell_outputs, cell_state = self._cells[i](inputs, states[i])
               if self._output_layers is not None:
                   cell_outputs = self._output_layers[i](cell_outputs)
               outputs.append(cell_outputs)
@@ -161,4 +161,4 @@ class BasicDecoder(decoder.Decoder):
               nstates.append(next_state)
               ninputs.append(next_inputs)
           outputs = BasicDecoderOutput(outputs, sample_ids)
-      return (outputs, nstates, ninputs, finished)
+      return (outputs, nstates, next_inputs, finished)
