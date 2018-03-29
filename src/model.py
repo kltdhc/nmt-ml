@@ -6,7 +6,7 @@ class model():
     def __init__(self, num_input, w2v, maxsenlen, maxanslen, n_hidden=512, batch_size=32, learning_rate=0.1, max_gradient_norm=5.):
         self.insent = []
         self.batch_size = batch_size
-        self.inans = tf.placeholder(tf.int32, shape=[self.batch_size, maxanslen], name='in_ans')
+        self.inans = tf.placeholder(tf.int32, shape=[self.batch_size, None], name='in_ans')
         self.inans_len = tf.placeholder(tf.int32, shape=[self.batch_size], name='in_sent_len')
         
         self.w2v = tf.concat([tf.constant([[0. for _ in range(len(w2v[0]))]]), tf.Variable(w2v[1:], dtype=tf.float32)], axis=0)
@@ -152,8 +152,10 @@ class model():
             in_sens[batch_no*self.batch_size:(1+batch_no)*self.batch_size] + [empty_s for i in range(num_zero)]
         feed_dict[self.insent[num_model][1]] = \
             in_sens_len[batch_no*self.batch_size:(1+batch_no)*self.batch_size] + [0 for i in range(num_zero)]
-        feed_dict[self.inans] = \
-            in_ans[batch_no*self.batch_size:(1+batch_no)*self.batch_size] + [empty_s for i in range(num_zero)]
+        amaxlen = max(in_ans_len[batch_no*self.batch_size:(1+batch_no)*self.batch_size])
+        x = in_ans[batch_no*self.batch_size:(1+batch_no)*self.batch_size] + [empty_s for i in range(num_zero)]
+        feed_dict[self.inans] = [i[:amaxlen] for i in x]
+            
         feed_dict[self.inans_len] = \
             in_ans_len[batch_no*self.batch_size:(1+batch_no)*self.batch_size] + [0 for i in range(num_zero)]
         return feed_dict
