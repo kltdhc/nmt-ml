@@ -1,6 +1,7 @@
 import tensorflow as tf
 from decoder import BasicDecoder
 from tensorflow.python.layers import core as layers_core
+import numpy as np
 
 class model():
     def __init__(self, num_input, w2v, maxsenlen, maxanslen, n_hidden=512, batch_size=32, learning_rate=0.1, max_gradient_norm=5.):
@@ -182,11 +183,15 @@ class model():
 
     def test(self, sess, in_sens, in_sens_len):
         batch_num = (len(in_sens)-1) // self.batch_size + 1
-        all_ans = []
-        all_logits = []
+        all_ans = None
+        all_logits = None
         for i in range(batch_num):
             feed_dict = self.get_test_batch(i, in_sens, in_sens_len)
             logits, ids = sess.run([self.test_logits, self.test_sample_id], feed_dict=feed_dict)
-            all_ans += list(ids)
-            all_logits += list(logits)
-        return all_ans, all_logits
+            if all_ans is None:
+                all_ans = ids
+                all_logits = logits
+            else:
+                all_ans = np.concatenate((all_ans, ids), axis=0)
+                all_logits = np.concatenate((all_logits, logits), axis=0)
+        return all_ans.tolist()[:len(in_sens)], all_logits.tolist()[:len(in_sens)]

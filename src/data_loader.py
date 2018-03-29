@@ -1,6 +1,15 @@
 import numpy as np
 from model import model as Model
 import tensorflow as tf
+from nltk.translate.bleu_score import sentence_bleu
+
+def bleu4(ref, cand):
+    ref = [ref]
+    cand = cand
+    s = sentence_bleu(ref, cand, weights=(0, 0, 0, 1))
+    if s>0.995 and sentence_bleu(ref, cand, weights=(1, 0, 0, 0))<0.9:
+        s = 0
+    return s
 
 def build_vocab(sents, vocab=None, vocab_dict=None, add_word=True, fix_maxlen=None):
     if vocab is None and vocab_dict is not None:
@@ -118,6 +127,14 @@ def read_dev_test_set(name, dirs, vocab, vocab_dict, qmaxlen, amaxlen, read_ans=
         test_alen = None
     return test_qsent, test_qlen, test_asent, test_alen, vocab, vocab_dict
 
+def eval(tar, ref):
+    count = 0
+    for t, r in zip(tar, ref):
+        t_end = t.index(3)
+        r_end = r.index(3)
+        count += bleu4(t[:t_end+1], r[:r_end+1])
+    return count/len(tar)
+
 def main():
     dirs = ['char_012', 'char_12', 'char_012_clf', 'char_12_clf', 'char_012_dclf', 'char_12_dclf']
     train_qsent, train_qlen, train_asent, train_alen, vocab, vocab_dict, qmaxlen, amaxlen = \
@@ -136,4 +153,4 @@ def main():
             model.train_all(sess, train_qsent, train_qlen, train_asent[0], train_alen[0])
             print('train...')
             rt = model.test(sess, dev_qsent, dev_qlen)
-            print('test...')
+            print('test...bleu=', eval(test_asent, rt[0]))
