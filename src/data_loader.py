@@ -127,3 +127,10 @@ def main():
         read_dev_test_set('test', dirs, vocab, vocab_dict, qmaxlen, amaxlen)
     w2v = build_vocab_matrix(vocab, vocab_dict)
     model = Model(len(dirs), np.array(w2v), qmaxlen, amaxlen)
+    config = tf.ConfigProto()
+    config.gpu_options.allow_growth = True
+    with tf.Session(config=config) as sess:
+        sess.run(tf.global_variables_initializer())
+        for i in range(100):
+            model.train_all(sess, train_qsent, train_qlen, train_asent[0], train_alen[0])
+            rt = model.test(sess, dev_qsent, dev_qlen)
