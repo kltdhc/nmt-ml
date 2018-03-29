@@ -161,8 +161,8 @@ class model():
         return feed_dict
     
     def get_test_batch(self, batch_no, in_sens, in_sens_len):
-        num_zero = self.batch_size - len(in_sens[num_model][batch_no*self.batch_size:(1+batch_no)*self.batch_size])
-        empty_s = [0 for i in range(len(in_sens[num_model][0]))]
+        num_zero = self.batch_size - len(in_sens[0][batch_no*self.batch_size:(1+batch_no)*self.batch_size])
+        empty_s = [0 for i in range(len(in_sens[0][0]))]
         feed_dict = {}
         for num_model in range(len(in_sens)):
             feed_dict[self.insent[num_model][0]] = \
