@@ -145,8 +145,8 @@ class model():
 
     def get_train_batch(self, batch_no, num_model, in_sens, in_sens_len, in_ans, in_ans_len):
         num_zero = self.batch_size - len(in_sens[batch_no*self.batch_size:(1+batch_no)*self.batch_size])
-        empty_s = [0. for i in range(len(in_sens[0]))]
-        empty_a = [0. for i in range(len(in_ans[0]))]
+        empty_s = [0 for i in range(len(in_sens[0]))]
+        empty_a = [0 for i in range(len(in_ans[0]))]
         feed_dict = {}
         feed_dict[self.insent[num_model][0]] = \
             in_sens[batch_no*self.batch_size:(1+batch_no)*self.batch_size] + [empty_s for i in range(num_zero)]
@@ -161,8 +161,8 @@ class model():
         return feed_dict
     
     def get_test_batch(self, batch_no, in_sens, in_sens_len):
-        num_zero = self.batch_size - len(in_sens[batch_no*self.batch_size:(1+batch_no)*self.batch_size])
-        empty_s = [0. for i in range(len(in_sens[0]))]
+        num_zero = self.batch_size - len(in_sens[num_model][batch_no*self.batch_size:(1+batch_no)*self.batch_size])
+        empty_s = [0 for i in range(len(in_sens[num_model][0]))]
         feed_dict = {}
         for num_model in range(len(in_sens)):
             feed_dict[self.insent[num_model][0]] = \
@@ -181,7 +181,7 @@ class model():
         loss /= batch_num
 
     def test(self, sess, in_sens, in_sens_len):
-        batch_num = len(in_sens) // self.batch_size
+        batch_num = (len(in_sens)-1) // self.batch_size + 1
         all_ans = []
         all_logits = []
         for i in range(batch_num):
