@@ -5,8 +5,8 @@ from tensorflow.python.layers import core as layers_core
 class model():
     def __init__(self, num_input, w2v, maxsenlen, maxanslen, n_hidden=512, batch_size=32, learning_rate=0.1, max_gradient_norm=5.):
         self.insent = []
-        self.inans = tf.placeholder(tf.int32, shape=[None, maxanslen], name='in_ans')
-        self.inans_len = tf.placeholder(tf.int32, shape=[None], name='in_sent_len')
+        self.inans = tf.placeholder(tf.int32, shape=[self.batch_size, maxanslen], name='in_ans')
+        self.inans_len = tf.placeholder(tf.int32, shape=[self.batch_size], name='in_sent_len')
         self.batch_size = batch_size
         self.w2v = tf.concat([tf.constant([[0. for _ in range(len(w2v[0]))]]), tf.Variable(w2v[1:], dtype=tf.float32)], axis=0)
         self.maxsenlen = maxsenlen
@@ -44,7 +44,7 @@ class model():
             logits, sample_id, final_context_state = self.build_single_decoder(
                 cell, encoders[i], tar_input, self.inans_len, self.output_layers[i], "decoder%d"%i)
             self.train_outputs.append(sample_id)
-            crossent = tf.nn.softmax_cross_entropy_with_logits(
+            crossent = tf.nn.sparse_softmax_cross_entropy_with_logits(
                 logits=logits, labels=self.inans)
             target_weights = tf.sequence_mask(
                 self.inans_len, maxanslen, dtype=logits.dtype)
@@ -147,9 +147,9 @@ class model():
         empty_a = [0. for i in range(len(in_ans[0]))]
         feed_dict = {}
         feed_dict[self.insent[num_model][0]] = \
-            in_sens[batch_no*self.batch_size:(1+batch_no)*self.batch_size] + [empty_s for i in range(num_zero)]
+            in_sens[num_model][batch_no*self.batch_size:(1+batch_no)*self.batch_size] + [empty_s for i in range(num_zero)]
         feed_dict[self.insent[num_model][1]] = \
-            in_sens_len[batch_no*self.batch_size:(1+batch_no)*self.batch_size] + [0 for i in range(num_zero)]
+            in_sens_len[num_model][batch_no*self.batch_size:(1+batch_no)*self.batch_size] + [0 for i in range(num_zero)]
         feed_dict[self.inans] = \
             in_ans[batch_no*self.batch_size:(1+batch_no)*self.batch_size] + [empty_s for i in range(num_zero)]
         feed_dict[self.inans_len] = \

@@ -1,5 +1,6 @@
 import numpy as np
 from model import model as Model
+import tensorflow as tf
 
 def build_vocab(sents, vocab=None, vocab_dict=None, add_word=True, fix_maxlen=None):
     if vocab is None and vocab_dict is not None:
