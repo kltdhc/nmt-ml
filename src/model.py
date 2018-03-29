@@ -176,7 +176,7 @@ class model():
         all_loss = 0
         for i in range(batch_num):
             feed_dict = self.get_train_batch(i, num_model, in_sens, in_sens_len, in_ans, in_ans_len)
-            loss, _ = sess.run([self.losses[i], self.steps[i]], feed_dict=feed_dict)
+            loss, _ = sess.run([self.losses[num_model], self.steps[num_model]], feed_dict=feed_dict)
             all_loss += loss
         loss /= batch_num
 
