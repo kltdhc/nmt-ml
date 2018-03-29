@@ -159,4 +159,4 @@ def main():
             model.train_all(sess, train_qsent, train_qlen, train_asent[0], train_alen[0])
             print('train...')
             rt = model.test(sess, dev_qsent, dev_qlen)
-            print('test...bleu=', eval(test_asent, rt[0]))
+            print('test...bleu=', eval(test_asent[0], rt[0]))
