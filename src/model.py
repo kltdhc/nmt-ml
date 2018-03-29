@@ -148,9 +148,9 @@ class model():
         empty_a = [0. for i in range(len(in_ans[0]))]
         feed_dict = {}
         feed_dict[self.insent[num_model][0]] = \
-            in_sens[num_model][batch_no*self.batch_size:(1+batch_no)*self.batch_size] + [empty_s for i in range(num_zero)]
+            in_sens[batch_no*self.batch_size:(1+batch_no)*self.batch_size] + [empty_s for i in range(num_zero)]
         feed_dict[self.insent[num_model][1]] = \
-            in_sens_len[num_model][batch_no*self.batch_size:(1+batch_no)*self.batch_size] + [0 for i in range(num_zero)]
+            in_sens_len[batch_no*self.batch_size:(1+batch_no)*self.batch_size] + [0 for i in range(num_zero)]
         feed_dict[self.inans] = \
             in_ans[batch_no*self.batch_size:(1+batch_no)*self.batch_size] + [empty_s for i in range(num_zero)]
         feed_dict[self.inans_len] = \
