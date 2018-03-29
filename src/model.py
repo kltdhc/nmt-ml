@@ -5,9 +5,10 @@ from tensorflow.python.layers import core as layers_core
 class model():
     def __init__(self, num_input, w2v, maxsenlen, maxanslen, n_hidden=512, batch_size=32, learning_rate=0.1, max_gradient_norm=5.):
         self.insent = []
+        self.batch_size = batch_size
         self.inans = tf.placeholder(tf.int32, shape=[self.batch_size, maxanslen], name='in_ans')
         self.inans_len = tf.placeholder(tf.int32, shape=[self.batch_size], name='in_sent_len')
-        self.batch_size = batch_size
+        
         self.w2v = tf.concat([tf.constant([[0. for _ in range(len(w2v[0]))]]), tf.Variable(w2v[1:], dtype=tf.float32)], axis=0)
         self.maxsenlen = maxsenlen
         self.maxanslen = maxanslen
