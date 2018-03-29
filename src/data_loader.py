@@ -130,8 +130,14 @@ def read_dev_test_set(name, dirs, vocab, vocab_dict, qmaxlen, amaxlen, read_ans=
 def eval(tar, ref):
     count = 0
     for t, r in zip(tar, ref):
-        t_end = t.index(3)
-        r_end = r.index(3)
+        if 3 in t:
+            t_end = t.index(3)
+        else:
+            t_end = len(t)-1
+        if 3 in r:
+            r_end = r.index(3)
+        else:
+            r_end = len(t)-1
         count += bleu4(t[:t_end+1], r[:r_end+1])
     return count/len(tar)
 
