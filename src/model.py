@@ -228,5 +228,5 @@ class model():
         for i in range(batch_num):
             feed_dict = self.get_train_batch(i, num_model, in_sens, in_sens_len)
             output = sess.run(self.test_outputs[num_model], feed_dict=feed_dict)
-            all_ans.append(output)
-        return np.concatenate(all_ans, axis=0).tolist()[:len(in_sens)]
+            all_ans += output.tolist()
+        return all_ans
