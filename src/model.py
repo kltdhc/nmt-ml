@@ -147,13 +147,13 @@ class model():
     def get_train_batch(self, batch_no, num_model, in_sens, in_sens_len, in_ans=None, in_ans_len=None):
         num_zero = self.batch_size - len(in_sens[batch_no*self.batch_size:(1+batch_no)*self.batch_size])
         empty_s = [0 for i in range(len(in_sens[0]))]
-        empty_a = [0 for i in range(len(in_ans[0]))]
         feed_dict = {}
         feed_dict[self.insent[num_model][0]] = \
             in_sens[batch_no*self.batch_size:(1+batch_no)*self.batch_size] + [empty_s for i in range(num_zero)]
         feed_dict[self.insent[num_model][1]] = \
             in_sens_len[batch_no*self.batch_size:(1+batch_no)*self.batch_size] + [0 for i in range(num_zero)]
         if in_ans is not None:
+            empty_a = [0 for i in range(len(in_ans[0]))]
             amaxlen = max(in_ans_len[batch_no*self.batch_size:(1+batch_no)*self.batch_size])
             x = in_ans[batch_no*self.batch_size:(1+batch_no)*self.batch_size] + [empty_s for i in range(num_zero)]
             feed_dict[self.inans] = [i[:amaxlen] for i in x]
