@@ -144,7 +144,7 @@ class model():
         for i in range(len(in_sens)):
             self.train(sess, i, in_sens[i], in_sens_len[i], in_ans, in_ans_len)
 
-    def get_train_batch(self, batch_no, num_model, in_sens, in_sens_len, in_ans, in_ans_len):
+    def get_train_batch(self, batch_no, num_model, in_sens, in_sens_len, in_ans=None, in_ans_len=None):
         num_zero = self.batch_size - len(in_sens[batch_no*self.batch_size:(1+batch_no)*self.batch_size])
         empty_s = [0 for i in range(len(in_sens[0]))]
         empty_a = [0 for i in range(len(in_ans[0]))]
@@ -153,9 +153,10 @@ class model():
             in_sens[batch_no*self.batch_size:(1+batch_no)*self.batch_size] + [empty_s for i in range(num_zero)]
         feed_dict[self.insent[num_model][1]] = \
             in_sens_len[batch_no*self.batch_size:(1+batch_no)*self.batch_size] + [0 for i in range(num_zero)]
-        amaxlen = max(in_ans_len[batch_no*self.batch_size:(1+batch_no)*self.batch_size])
-        x = in_ans[batch_no*self.batch_size:(1+batch_no)*self.batch_size] + [empty_s for i in range(num_zero)]
-        feed_dict[self.inans] = [i[:amaxlen] for i in x]
+        if in_ans is not None:
+            amaxlen = max(in_ans_len[batch_no*self.batch_size:(1+batch_no)*self.batch_size])
+            x = in_ans[batch_no*self.batch_size:(1+batch_no)*self.batch_size] + [empty_s for i in range(num_zero)]
+            feed_dict[self.inans] = [i[:amaxlen] for i in x]
             
         feed_dict[self.inans_len] = \
             in_ans_len[batch_no*self.batch_size:(1+batch_no)*self.batch_size] + [0 for i in range(num_zero)]
@@ -195,3 +196,13 @@ class model():
                 all_ans = np.concatenate((all_ans, ids), axis=0)
                 all_logits = np.concatenate((all_logits, logits), axis=0)
         return all_ans.tolist()[:len(in_sens[0])], all_logits.tolist()[:len(in_sens[0])]
+
+    def test_sep(self, sess, num_model, in_sens, in_sens_len):
+        batch_num = len(in_sens) // self.batch_size
+        all_loss = 0
+        all_ans = []
+        for i in range(batch_num):
+            feed_dict = self.get_train_batch(i, num_model, in_sens, in_sens_len)
+            output = sess.run(self.train_outputs[num_model], feed_dict=feed_dict)
+            all_ans.append(output)
+        return np.concatenate(all_ans, axis=0).tolist()[:len(in_sens)]

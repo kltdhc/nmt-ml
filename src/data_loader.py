@@ -160,3 +160,6 @@ def main():
             print('train...')
             rt = model.test(sess, dev_qsent, dev_qlen)
             print('test...bleu=', eval(test_asent[0], rt[0]))
+            for j in range(6):
+                rt = model.test_sep(sess, j, dev_qsent[j], dev_qlen[j])
+                print('test...%d...bleu='%j, eval(test_asent[0], rt[0]))
