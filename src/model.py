@@ -157,9 +157,8 @@ class model():
             amaxlen = max(in_ans_len[batch_no*self.batch_size:(1+batch_no)*self.batch_size])
             x = in_ans[batch_no*self.batch_size:(1+batch_no)*self.batch_size] + [empty_s for i in range(num_zero)]
             feed_dict[self.inans] = [i[:amaxlen] for i in x]
-            
-        feed_dict[self.inans_len] = \
-            in_ans_len[batch_no*self.batch_size:(1+batch_no)*self.batch_size] + [0 for i in range(num_zero)]
+            feed_dict[self.inans_len] = \
+                in_ans_len[batch_no*self.batch_size:(1+batch_no)*self.batch_size] + [0 for i in range(num_zero)]
         return feed_dict
     
     def get_test_batch(self, batch_no, in_sens, in_sens_len):
