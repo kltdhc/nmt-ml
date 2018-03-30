@@ -153,13 +153,16 @@ def main():
     model = Model(len(dirs), np.array(w2v), qmaxlen, amaxlen)
     config = tf.ConfigProto()
     config.gpu_options.allow_growth = True
+    states = [True for i in range(6)]
     with tf.Session(config=config) as sess:
         sess.run(tf.global_variables_initializer())
         for i in range(100):
-            model.train_all(sess, train_qsent, train_qlen, train_asent[0], train_alen[0])
+            model.train_all(sess, train_qsent, train_qlen, train_asent[0], train_alen[0], states)
             print('train...')
             rt = model.test(sess, dev_qsent, dev_qlen)
             print('test...bleu=', eval(dev_asent[0], rt[0]))
             for j in range(6):
                 rt = model.test_sep(sess, j, dev_qsent[j], dev_qlen[j])
                 print('test...%d...bleu='%j, eval(dev_asent[0], rt))
+                if eval(dev_asent[0], rt)>0.3:
+                    states[j] = False

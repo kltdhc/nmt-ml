@@ -165,9 +165,10 @@ class model():
         sample_id = outputs.sample_id
         return logits, sample_id, final_context_state
 
-    def train_all(self, sess, in_sens, in_sens_len, in_ans, in_ans_len):
+    def train_all(self, sess, in_sens, in_sens_len, in_ans, in_ans_len, states=None):
         for i in range(len(in_sens)):
-            self.train(sess, i, in_sens[i], in_sens_len[i], in_ans, in_ans_len)
+            if states is None or states[i]:
+                self.train(sess, i, in_sens[i], in_sens_len[i], in_ans, in_ans_len)
 
     def get_train_batch(self, batch_no, num_model, in_sens, in_sens_len, in_ans=None, in_ans_len=None):
         num_zero = self.batch_size - len(in_sens[batch_no*self.batch_size:(1+batch_no)*self.batch_size])
