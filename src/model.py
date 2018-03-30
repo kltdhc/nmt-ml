@@ -47,9 +47,9 @@ class model():
             logits, sample_id, final_context_state = self.build_single_decoder(
                 cell, encoders[i], tar_input, self.inans_len, self.output_layers[i], "decoder%d"%i)
             self.train_outputs.append(sample_id)
-            logits, sample_id, final_context_state = self.build_single_test_decoder(
+            logits2, sample_id2, final_context_state2 = self.build_single_test_decoder(
                 cell, encoders[i], self.output_layers[i], "test_decoder%d"%i)
-            self.test_outputs.append(sample_id)
+            self.test_outputs.append(sample_id2)
             crossent = tf.nn.sparse_softmax_cross_entropy_with_logits(
                 logits=logits, labels=self.inans)
             target_weights = tf.sequence_mask(
