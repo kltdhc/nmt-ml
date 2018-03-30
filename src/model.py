@@ -40,12 +40,16 @@ class model():
         self.steps = []
         self.losses = []
         self.train_outputs = []
+        self.test_outputs = []
         for i in range(len(self.insent)):
             cell = self.build_decoder_cells(encoders_out[i], self.insent[i][1], n_hidden, i)
             self.cells.append(cell)
             logits, sample_id, final_context_state = self.build_single_decoder(
                 cell, encoders[i], tar_input, self.inans_len, self.output_layers[i], "decoder%d"%i)
             self.train_outputs.append(sample_id)
+            logits, sample_id, final_context_state = self.build_single_test_decoder(
+                cell, encoders[i], self.output_layers[i], "test_decoder%d"%i)
+            self.test_outputs.append(sample_id)
             crossent = tf.nn.sparse_softmax_cross_entropy_with_logits(
                 logits=logits, labels=self.inans)
             target_weights = tf.sequence_mask(
@@ -102,6 +106,27 @@ class model():
         with tf.variable_scope(scope):
             helper = tf.contrib.seq2seq.TrainingHelper(
                 tar_in, tar_len)
+            # Decoder
+            decoder_initial_state = cell.zero_state(self.batch_size, tf.float32).clone(
+                cell_state=input_state)
+            decoder = tf.contrib.seq2seq.BasicDecoder(
+                cell, helper, decoder_initial_state, output_layer=output_layer)
+            # Dynamic decoding
+            outputs, final_context_state, _ = tf.contrib.seq2seq.dynamic_decode(
+                decoder,
+                # output_time_major=True,
+                swap_memory=True,
+                maximum_iterations=self.maxanslen,
+                scope=scope)
+            sample_id = outputs.sample_id
+            # logits = self.output_layer(outputs.rnn_output)
+            logits = outputs.rnn_output
+        return logits, sample_id, final_context_state
+
+    def build_single_test_decoder(self, cell, input_state, output_layer, scope):
+        with tf.variable_scope(scope):
+            helper = tf.contrib.seq2seq.GreedyEmbeddingHelper(
+                self.w2v, tf.fill([self.batch_size], 2), 3)
             # Decoder
             decoder_initial_state = cell.zero_state(self.batch_size, tf.float32).clone(
                 cell_state=input_state)
@@ -202,6 +227,6 @@ class model():
         all_ans = []
         for i in range(batch_num):
             feed_dict = self.get_train_batch(i, num_model, in_sens, in_sens_len)
-            output = sess.run(self.train_outputs[num_model], feed_dict=feed_dict)
+            output = sess.run(self.test_outputs[num_model], feed_dict=feed_dict)
             all_ans.append(output)
         return np.concatenate(all_ans, axis=0).tolist()[:len(in_sens)]
