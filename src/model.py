@@ -4,7 +4,7 @@ from tensorflow.python.layers import core as layers_core
 import numpy as np
 
 class model():
-    def __init__(self, num_input, w2v, maxsenlen, maxanslen, n_hidden=512, batch_size=32, learning_rate=0.1, max_gradient_norm=5.):
+    def __init__(self, num_input, w2v, maxsenlen, maxanslen, n_hidden=512, batch_size=32, learning_rate=0.001, max_gradient_norm=5., layers=2):
         self.insent = []
         self.batch_size = batch_size
         self.inans = tf.placeholder(tf.int32, shape=[self.batch_size, None], name='in_ans')
@@ -32,7 +32,7 @@ class model():
         encoders = []
         encoders_out = []
         for i in range(len(self.insent)):
-            encoder_out, encoder_state = self.build_encoder(emb_inputs[i], self.insent[i][1], n_hidden, i)
+            encoder_out, encoder_state = self.build_encoder(emb_inputs[i], self.insent[i][1], n_hidden, i, layers)
             encoders_out.append(encoder_out)
             encoders.append(encoder_state)
 
@@ -42,7 +42,7 @@ class model():
         self.train_outputs = []
         self.test_outputs = []
         for i in range(len(self.insent)):
-            cell = self.build_decoder_cells(encoders_out[i], self.insent[i][1], n_hidden, i)
+            cell = self.build_decoder_cells(encoders_out[i], self.insent[i][1], n_hidden, i, layers)
             self.cells.append(cell)
             logits, sample_id, final_context_state = self.build_single_decoder(
                 cell, encoders[i], tar_input, self.inans_len, self.output_layers[i], "decoder%d"%i)
@@ -88,11 +88,16 @@ class model():
             zip(clipped_gradients, params))
         
 
-    def build_encoder(self, input_s, inlen, n_hidden, i):
+    def build_encoder(self, input_s, inlen, n_hidden, i, layers):
         with tf.variable_scope('build_encoder_%d'%i):
             # Build RNN cell
-            encoder_cell = tf.nn.rnn_cell.BasicLSTMCell(n_hidden)
-
+            if layers>1:
+                encoder_cell = []
+                for i in range(layers):
+                    encoder_cell.append(tf.nn.rnn_cell.BasicLSTMCell(n_hidden))
+                encoder_cell = tf.nn.rnn_cell.MultiRNNCell(encoder_cell)
+            else:
+                encoder_cell = tf.nn.rnn_cell.BasicLSTMCell(n_hidden)
             # Run Dynamic RNN
             #   encoder_outputs: [max_time, batch_size, num_units]
             #   encoder_state: [batch_size, num_units]
@@ -101,14 +106,21 @@ class model():
                 sequence_length=inlen, dtype=tf.float32)
             return encoder_outputs, encoder_state
 
-    def build_decoder_cells(self, encoder_out, inlen, n_hidden, i):
+    def build_decoder_cells(self, encoder_out, inlen, n_hidden, i, layers):
         # Build RNN cell
         # attention_states: [batch_size, max_time, num_units]
         with tf.variable_scope('build_decoder_%d'%i):
             # attention_states = tf.transpose(input_state, [1, 0, 2])
 
             # Create an attention mechanism
-            cell = tf.nn.rnn_cell.BasicLSTMCell(n_hidden)
+            if layers>1:
+                cell = []
+                for i in range(layers):
+                    cell.append(tf.nn.rnn_cell.BasicLSTMCell(n_hidden))
+                cell = tf.nn.rnn_cell.MultiRNNCell(cell)
+            else:
+                cell = tf.nn.rnn_cell.BasicLSTMCell(n_hidden)
+                
             attention_mechanism = tf.contrib.seq2seq.LuongAttention(
                 n_hidden, 
                 encoder_out,
