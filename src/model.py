@@ -270,7 +270,7 @@ class model():
         loss /= batch_num
     
     def train_ml(self, sess, in_sens, in_sens_len, in_ans, in_ans_len):
-        batch_num = len(in_sens) // self.batch_size
+        batch_num = len(in_sens[0]) // self.batch_size
         all_loss = 0
         shuffle_indices = np.random.permutation(np.arange(len(in_sens)))
         in_sens = np.array(in_sens)[shuffle_indices].tolist()
