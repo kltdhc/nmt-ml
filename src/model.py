@@ -71,7 +71,7 @@ class model():
         self.test_logits, self.test_sample_id, final_context_state = \
             self.build_multi_decoder(self.cells, encoders, self.output_layers, "ml_decoder")
         tlogits, t_sid, final_context_state = \
-            self.build_multi_decoder_for_train(self.cells, encoders, tar_input, self.inans_len, self.output_layers. "ml_train")
+            self.build_multi_decoder_for_train(self.cells, encoders, tar_input, self.inans_len, self.output_layers, "ml_train")
         crossent = tf.nn.sparse_softmax_cross_entropy_with_logits(
             logits=tlogits, labels=self.inans)
         target_weights = tf.sequence_mask(
