@@ -147,7 +147,7 @@ class BasicDecoder(decoder.Decoder):
               cell_outputs, cell_state = self._cells[i](inputs, states[i])
               if self._output_layers is not None:
                   cell_outputs = self._output_layers[i](cell_outputs)
-              outputs.append(cell_outputs)
+              outputs.append(tf.nn.softmax(cell_outputs, axis=-1))
               cstates.append(cell_state)
           outputs = tf.add_n(outputs)
           sample_ids = self._helper.sample(time=time, outputs=outputs, state=cell_state)
