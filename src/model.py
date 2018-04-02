@@ -4,7 +4,7 @@ from tensorflow.python.layers import core as layers_core
 import numpy as np
 
 class model():
-    def __init__(self, num_input, w2v, maxsenlen, maxanslen, n_hidden=512, batch_size=32, learning_rate=0.001, max_gradient_norm=5., layers=2):
+    def __init__(self, num_input, w2v, maxsenlen, maxanslen, n_hidden=512, batch_size=32, learning_rate=0.1, max_gradient_norm=5., layers=2):
         self.insent = []
         self.batch_size = batch_size
         self.inans = tf.placeholder(tf.int32, shape=[self.batch_size, None], name='in_ans')
@@ -120,7 +120,7 @@ class model():
                 cell = tf.nn.rnn_cell.MultiRNNCell(cell)
             else:
                 cell = tf.nn.rnn_cell.BasicLSTMCell(n_hidden)
-                
+
             attention_mechanism = tf.contrib.seq2seq.LuongAttention(
                 n_hidden, 
                 encoder_out,
