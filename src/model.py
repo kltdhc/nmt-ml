@@ -10,7 +10,7 @@ class model():
         self.inans = tf.placeholder(tf.int32, shape=[self.batch_size, None], name='in_ans')
         self.inans_len = tf.placeholder(tf.int32, shape=[self.batch_size], name='in_sent_len')
         
-        self.w2v = tf.concat([tf.constant([[0. for _ in range(len(w2v[0]))]]), tf.Variable(w2v[1:], dtype=tf.float32)], axis=0)
+        self.w2v = tf.concat([tf.constant([[0. for _ in range(len(w2v[0]))]]), tf.Variable(w2v[1:], dtype=tf.float32, trainable=False)], axis=0)
         self.maxsenlen = maxsenlen
         self.maxanslen = maxanslen
         self.output_layers = [layers_core.Dense(
