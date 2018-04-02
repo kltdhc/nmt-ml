@@ -164,9 +164,9 @@ class model():
     
     def build_multi_decoder_for_train(self, cells, input_states, tar_in, tar_len, output_layers, scope):
         helper = tf.contrib.seq2seq.TrainingHelper(
-                tar_in, tar_len)
+            tar_in, tar_len)
         decoder_initial_states = [cell.zero_state(self.batch_size, tf.float32).clone(
-                cell_state=input_state) for cell, input_state in zip(cells, input_states)]
+            cell_state=input_state) for cell, input_state in zip(cells, input_states)]
         my_decoder = BasicDecoder(
             cells,
             helper,
@@ -183,7 +183,7 @@ class model():
         sample_id = outputs.sample_id
         return logits, sample_id, final_context_state
 
-        def build_multi_decoder(self, cells, input_states, output_layers, scope):
+    def build_multi_decoder(self, cells, input_states, output_layers, scope):
         helper = tf.contrib.seq2seq.GreedyEmbeddingHelper(
             self.w2v, tf.fill([self.batch_size], 2), 3)
         decoder_initial_states = [cell.zero_state(self.batch_size, tf.float32).clone(
