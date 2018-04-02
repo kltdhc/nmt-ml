@@ -278,7 +278,7 @@ class model():
         in_ans = np.array(in_ans)[shuffle_indices].tolist()
         in_ans_len = np.array(in_ans_len)[shuffle_indices].tolist()
         for i in range(batch_num):
-            feed_dict = self.get_train_batch(i, in_sens, in_sens_len, in_ans, in_ans_len)
+            feed_dict = self.get_train_batch_ml(i, in_sens, in_sens_len, in_ans, in_ans_len)
             loss, _ = sess.run([self.ml_loss, self.ml_update_step], feed_dict=feed_dict)
             all_loss += loss
         loss /= batch_num
