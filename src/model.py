@@ -259,8 +259,9 @@ class model():
         batch_num = len(in_sens) // self.batch_size
         all_loss = 0
         shuffle_indices = np.random.permutation(np.arange(len(in_sens)))
-        in_sens = np.array(in_sens)[shuffle_indices].tolist()
-        in_sens_len = np.array(in_sens_len)[shuffle_indices].tolist()
+        for i in range(len(in_sens)):
+            in_sens[i] = np.array(in_sens[i])[shuffle_indices].tolist()
+            in_sens_len[i] = np.array(in_sens_len[i])[shuffle_indices].tolist()
         in_ans = np.array(in_ans)[shuffle_indices].tolist()
         in_ans_len = np.array(in_ans_len)[shuffle_indices].tolist()
         for i in range(batch_num):

@@ -161,7 +161,9 @@ def main():
             model.train_ml(sess, train_qsent, train_qlen, train_asent[0], train_alen[0])
             print('train...')
             rt = model.test(sess, dev_qsent, dev_qlen)
-            print('test...bleu=', eval(dev_asent[0], rt[0]))
+            print('dev...bleu=', eval(dev_asent[0], rt[0]))
+            rt = model.test(sess, test_qsent, test_qlen)
+            print('test...bleu=', eval(test_asent[0], rt[0]))
             # for j in range(6):
             #     rt = model.test_sep(sess, j, dev_qsent[j], dev_qlen[j])
             #     print('test...%d...bleu='%j, eval(dev_asent[0], rt))
