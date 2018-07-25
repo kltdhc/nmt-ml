@@ -1,33 +1,39 @@
 import tensorflow as tf
-from decoder import BasicDecoder
+from decoder2 import BasicDecoder
 from tensorflow.python.layers import core as layers_core
 import numpy as np
 
 class model():
-    def __init__(self, num_input, w2v, maxsenlen, maxanslen, n_hidden=512, batch_size=32, learning_rate=0.1, max_gradient_norm=5., layers=2):
+    def __init__(self, num_input, w2v, maxsenlen, maxanslen, n_hidden=512, batch_size=32, learning_rate=1., max_gradient_norm=5., layers=2):
         self.insent = []
         self.batch_size = batch_size
         self.inans = tf.placeholder(tf.int32, shape=[self.batch_size, None], name='in_ans')
         self.inans_len = tf.placeholder(tf.int32, shape=[self.batch_size], name='in_sent_len')
+        self.inans_train = tf.placeholder(tf.int32, shape=[self.batch_size, None], name='in_ans_tar_in')
+        self.w2v = []
+        for i in range(num_input):
+            self.w2v.append(tf.concat(
+                [tf.constant([[0. for _ in range(len(w2v[0]))]]), tf.Variable(w2v[1:], dtype=tf.float32, trainable=True)], 
+                axis=0, name='w2v_l%d'%i))
         
-        self.w2v = tf.concat([tf.constant([[0. for _ in range(len(w2v[0]))]]), tf.Variable(w2v[1:], dtype=tf.float32, trainable=False)], axis=0)
         self.maxsenlen = maxsenlen
         self.maxanslen = maxanslen
         self.output_layers = [layers_core.Dense(
             len(w2v), use_bias=False, name="output_projection") for _ in range(num_input)]
         for i in range(num_input):
             self.insent.append((
-                tf.placeholder(tf.int32, shape=[self.batch_size, maxsenlen], name='in_sent_%d'%i),
-                tf.placeholder(tf.int32, shape=[self.batch_size], name='in_sent_len_%d'%i)))
+                tf.placeholder(tf.int32, shape=[self.batch_size, maxsenlen], name='in_sent_l%d'%i),
+                tf.placeholder(tf.int32, shape=[self.batch_size], name='in_sent_len_l%d'%i)))
             # self.intar.append((
-            #     tf.placeholder(tf.int32, shape=[None, maxsenlen], name='in_tar_%d'%i),
-            #     tf.placeholder(tf.int32, shape=[None], name='in_tar_len_%d'%i)))
+            #     tf.placeholder(tf.int32, shape=[None, maxsenlen], name='in_tar_l%d'%i),
+            #     tf.placeholder(tf.int32, shape=[None], name='in_tar_len_l%d'%i)))
         
         emb_inputs = []
+        tar_inputs = []
         with tf.device('/cpu:0'), tf.variable_scope('embedding'):
-            tar_input = tf.nn.embedding_lookup(self.w2v, self.inans)
             for i in range(len(self.insent)):
-                emb_inputs.append(tf.nn.embedding_lookup(self.w2v, self.insent[i][0]))
+                tar_inputs.append(tf.nn.embedding_lookup(self.w2v[i], self.inans_train, name='tar_in_l%d'%i))
+                emb_inputs.append(tf.nn.embedding_lookup(self.w2v[i], self.insent[i][0], name='dec_in_l%d'%i))
         
         encoders = []
         encoders_out = []
@@ -37,7 +43,6 @@ class model():
             encoders.append(encoder_state)
 
         self.cells = []
-        self.steps = []
         self.losses = []
         self.train_outputs = []
         self.test_outputs = []
@@ -45,10 +50,10 @@ class model():
             cell = self.build_decoder_cells(encoders_out[i], self.insent[i][1], n_hidden, i, layers)
             self.cells.append(cell)
             logits, sample_id, final_context_state = self.build_single_decoder(
-                cell, encoders[i], tar_input, self.inans_len, self.output_layers[i], "decoder%d"%i)
+                cell, encoders[i], tar_inputs[i], self.inans_len, self.output_layers[i], "decoder_l%d"%i)
             self.train_outputs.append(sample_id)
             logits2, sample_id2, final_context_state2 = self.build_single_test_decoder(
-                cell, encoders[i], self.output_layers[i], "test_decoder%d"%i)
+                cell, encoders[i], self.output_layers[i], "test_decoder_l%d"%i, i)
             self.test_outputs.append(sample_id2)
             crossent = tf.nn.sparse_softmax_cross_entropy_with_logits(
                 logits=logits, labels=self.inans)
@@ -57,21 +62,13 @@ class model():
             train_loss = (tf.reduce_sum(crossent * target_weights) /
                 self.batch_size)
             self.losses.append(train_loss)
-            params = tf.trainable_variables()
-            gradients = tf.gradients(train_loss, params)
-            # print(gradients)
-            clipped_gradients, _ = tf.clip_by_global_norm(
-                gradients, max_gradient_norm)
-            optimizer = tf.train.AdamOptimizer(learning_rate)
-            update_step = optimizer.apply_gradients(
-                zip(clipped_gradients, params))
-            self.steps.append(update_step)
+            
         
         # multilayer decoder
         self.test_logits, self.test_sample_id, final_context_state = \
             self.build_multi_decoder(self.cells, encoders, self.output_layers, "ml_decoder")
         tlogits, t_sid, final_context_state = \
-            self.build_multi_decoder_for_train(self.cells, encoders, tar_input, self.inans_len, self.output_layers, "ml_train")
+            self.build_multi_decoder_for_train(self.cells, encoders, tar_inputs, self.inans_len, self.output_layers, "ml_train")
         crossent = tf.nn.sparse_softmax_cross_entropy_with_logits(
             logits=tlogits, labels=self.inans)
         target_weights = tf.sequence_mask(
@@ -79,17 +76,33 @@ class model():
         self.ml_loss = (tf.reduce_sum(crossent * target_weights) /
             self.batch_size)
         params = tf.trainable_variables()
+
+        self.steps = []
+        for i in range(num_input):
+            now_params = []
+            for j in params:
+                if '_l%d'%i in j.name:
+                    now_params.append(j)
+            gradients = tf.gradients(self.losses[i], now_params)
+            # print(gradients)
+            clipped_gradients, _ = tf.clip_by_global_norm(
+                gradients, max_gradient_norm)
+            optimizer = tf.train.GradientDescentOptimizer(learning_rate)
+            update_step = optimizer.apply_gradients(
+                zip(clipped_gradients, now_params))
+            self.steps.append(update_step)
+
         gradients = tf.gradients(self.ml_loss, params)
         # print(gradients)
         clipped_gradients, _ = tf.clip_by_global_norm(
             gradients, max_gradient_norm)
-        optimizer = tf.train.AdamOptimizer(learning_rate)
+        optimizer = tf.train.GradientDescentOptimizer(learning_rate)
         self.ml_update_step = optimizer.apply_gradients(
             zip(clipped_gradients, params))
         
 
     def build_encoder(self, input_s, inlen, n_hidden, i, layers):
-        with tf.variable_scope('build_encoder_%d'%i):
+        with tf.variable_scope('build_encoder_l%d'%i):
             # Build RNN cell
             if layers>1:
                 encoder_cell = []
@@ -109,7 +122,7 @@ class model():
     def build_decoder_cells(self, encoder_out, inlen, n_hidden, i, layers):
         # Build RNN cell
         # attention_states: [batch_size, max_time, num_units]
-        with tf.variable_scope('build_decoder_%d'%i):
+        with tf.variable_scope('build_decoder_l%d'%i):
             # attention_states = tf.transpose(input_state, [1, 0, 2])
 
             # Create an attention mechanism
@@ -153,10 +166,10 @@ class model():
             logits = outputs.rnn_output
         return logits, sample_id, final_context_state
 
-    def build_single_test_decoder(self, cell, input_state, output_layer, scope):
+    def build_single_test_decoder(self, cell, input_state, output_layer, scope, i):
         with tf.variable_scope(scope):
             helper = tf.contrib.seq2seq.GreedyEmbeddingHelper(
-                self.w2v, tf.fill([self.batch_size], 2), 3)
+                self.w2v[i], tf.fill([self.batch_size], 2), 3)
             # Decoder
             decoder_initial_state = cell.zero_state(self.batch_size, tf.float32).clone(
                 cell_state=input_state)
@@ -175,13 +188,14 @@ class model():
         return logits, sample_id, final_context_state
     
     def build_multi_decoder_for_train(self, cells, input_states, tar_in, tar_len, output_layers, scope):
-        helper = tf.contrib.seq2seq.TrainingHelper(
-            tar_in, tar_len)
+        helpers = []
+        for i in range(len(cells)):
+            helpers.append(tf.contrib.seq2seq.TrainingHelper(tar_in[i], tar_len))
         decoder_initial_states = [cell.zero_state(self.batch_size, tf.float32).clone(
             cell_state=input_state) for cell, input_state in zip(cells, input_states)]
         my_decoder = BasicDecoder(
             cells,
-            helper,
+            helpers,
             decoder_initial_states,
             output_layers=output_layers)
         
@@ -196,13 +210,15 @@ class model():
         return logits, sample_id, final_context_state
 
     def build_multi_decoder(self, cells, input_states, output_layers, scope):
-        helper = tf.contrib.seq2seq.GreedyEmbeddingHelper(
-            self.w2v, tf.fill([self.batch_size], 2), 3)
+        helpers = []
+        for i in range(len(cells)):
+            helpers.append(tf.contrib.seq2seq.GreedyEmbeddingHelper(
+                self.w2v[i], tf.fill([self.batch_size], 2), 3))
         decoder_initial_states = [cell.zero_state(self.batch_size, tf.float32).clone(
                 cell_state=input_state) for cell, input_state in zip(cells, input_states)]
         my_decoder = BasicDecoder(
             cells,
-            helper,
+            helpers,
             decoder_initial_states,
             output_layers=output_layers)
         
@@ -234,6 +250,7 @@ class model():
             amaxlen = max(in_ans_len[batch_no*self.batch_size:(1+batch_no)*self.batch_size])
             x = in_ans[batch_no*self.batch_size:(1+batch_no)*self.batch_size] + [empty_s for i in range(num_zero)]
             feed_dict[self.inans] = [i[:amaxlen] for i in x]
+            feed_dict[self.inans_train] = [[2]+i[:amaxlen-1] for i in x]
             feed_dict[self.inans_len] = \
                 in_ans_len[batch_no*self.batch_size:(1+batch_no)*self.batch_size] + [0 for i in range(num_zero)]
         return feed_dict
@@ -252,6 +269,7 @@ class model():
             amaxlen = max(in_ans_len[batch_no*self.batch_size:(1+batch_no)*self.batch_size])
             x = in_ans[batch_no*self.batch_size:(1+batch_no)*self.batch_size] + [empty_s for i in range(num_zero)]
             feed_dict[self.inans] = [i[:amaxlen] for i in x]
+            feed_dict[self.inans_train] = [[2]+i[:amaxlen-1] for i in x]
             feed_dict[self.inans_len] = \
                 in_ans_len[batch_no*self.batch_size:(1+batch_no)*self.batch_size] + [0 for i in range(num_zero)]
         return feed_dict
@@ -279,7 +297,7 @@ class model():
             feed_dict = self.get_train_batch(i, num_model, in_sens, in_sens_len, in_ans, in_ans_len)
             loss, _ = sess.run([self.losses[num_model], self.steps[num_model]], feed_dict=feed_dict)
             all_loss += loss
-        loss /= batch_num
+        print(all_loss)
     
     def train_ml(self, sess, in_sens, in_sens_len, in_ans, in_ans_len):
         batch_num = len(in_sens[0]) // self.batch_size

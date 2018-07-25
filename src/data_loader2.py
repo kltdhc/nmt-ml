@@ -3,6 +3,7 @@ from model2 import model as Model
 import tensorflow as tf
 from bleu import compute_bleu
 import time
+import re
 
 def build_vocab(sents, vocab=None, vocab_dict=None, add_word=True, fix_maxlen=None):
     if vocab is None and vocab_dict is not None:
@@ -52,8 +53,8 @@ def build_vocab(sents, vocab=None, vocab_dict=None, add_word=True, fix_maxlen=No
     
     return cut_sents, cut_len, vocab, vocab_dict
 
-def build_vocab_matrix(vocab, vocab_dict, dir='../data/char_emb'):
-    infile = open('../data/char_emb', encoding='utf8')
+def build_vocab_matrix(vocab, vocab_dict, dir='../data/word_emb'):
+    infile = open('../data/word_emb', encoding='utf8')
     embeddings = {}
     emb_size = 0
     for line in infile:
@@ -79,11 +80,11 @@ def read_input(files):
         rt.append(nowrt)
     return rt, maxlen
 
-def read_trainset(name, dirs):
-    train_q, qmaxlen = read_input(['../data/'+i+'/'+name+'.q' for i in dirs])
-    qmaxlen = 50
-    train_a, amaxlen = read_input(['../data/'+i+'/'+name+'.a' for i in dirs])
-    amaxlen = 30
+def read_trainset(dirs):
+    train_q, qmaxlen = read_input(['../data/'+i+'/train.q' for i in dirs])
+    qmaxlen += 10
+    train_a, amaxlen = read_input(['../data/'+i+'/train.a' for i in dirs])
+    amaxlen += 10
     train_qsent = []
     train_qlen = []
     vocab = None
@@ -121,9 +122,20 @@ def read_dev_test_set(name, dirs, vocab, vocab_dict, qmaxlen, amaxlen, read_ans=
         test_alen = None
     return test_qsent, test_qlen, test_asent, test_alen, vocab, vocab_dict
 
-def eval(tar, ref):
-    tar = [x[:(x+[3]).index(3)] for x in tar]
-    ref = [x[:(x+[3]).index(3)] for x in ref]
+def cut_by_char(sent):
+    re_hanzi = re.compile(r'(?P<hanzi>[\u4e00-\u9fa5\uff01-\uff5e])')
+    re_space = re.compile(r' {2,}')
+    return re_space.sub(' ', re_hanzi.sub(' \g<hanzi> ', sent)).strip(' ').split(' ')
+
+def recut(sent, mvocab=None):
+    global vocab
+    if mvocab is None:
+        mvocab = vocab
+    return cut_by_char(''.join([mvocab[i] for i in sent[:(sent+[3]).index(3)]]))
+
+def eval(tar, ref, vocab):
+    tar = [recut(x[:(x+[3]).index(3)], vocab) for x in tar]
+    ref = [recut(x[:(x+[3]).index(3)], vocab) for x in ref]
     return compute_bleu(tar, ref)[0]
 
 def print_ans(sent, mvocab=None):
@@ -134,27 +146,25 @@ def print_ans(sent, mvocab=None):
 
 def main():
     global vocab
-    dirs = ['char_012', 'char_12', 'char_012_clf', 'char_12_clf', 'char_012_dclf', 'char_12_dclf']
-    # dirs = ['char_12_clf', 'char_12_clf', 'char_12_clf', 'char_12_dclf', 'char_12_dclf', 'char_12_dclf']
-    # dirs = ['char_12', 'char_12', 'char_12_clf', 'char_12_clf', 'char_12_dclf', 'char_12_dclf']
+    dirs = ['word_012', 'word_12', 'word_012_clf', 'word_12_clf', 'word_012_dclf', 'word_12_dclf']
     birnn = [True for _ in range(len(dirs))] + [False for _ in range(len(dirs))]
     layers = [2 for _ in range(len(dirs))] + [3 for _ in range(len(dirs))]
     dirs += dirs
     train_qsent, train_qlen, train_asent, train_alen, vocab, vocab_dict, qmaxlen, amaxlen = \
-        read_trainset('train2', dirs)
+        read_trainset(dirs)
     dev_qsent, dev_qlen, dev_asent, dev_alen, vocab, vocab_dict = \
-        read_dev_test_set('test', dirs, vocab, vocab_dict, qmaxlen, amaxlen)
+        read_dev_test_set('dev', dirs, vocab, vocab_dict, qmaxlen, amaxlen)
     test_qsent, test_qlen, test_asent, test_alen, vocab, vocab_dict = \
         read_dev_test_set('test', dirs, vocab, vocab_dict, qmaxlen, amaxlen)
     w2v = build_vocab_matrix(vocab, vocab_dict)
-    model = Model(len(dirs), np.array(w2v), qmaxlen, amaxlen, learning_rate=0.001, n_hidden=256, layers=layers, birnn=birnn, copynet=True, adam=True)
+    model = Model(len(dirs), np.array(w2v), qmaxlen, amaxlen, learning_rate=0.001, n_hidden=256, layers=layers, birnn=birnn, copynet=False, adam=True)
     config = tf.ConfigProto()
     config.gpu_options.allow_growth = True
     timestr = str(int(time.time()))
     max_bleu = [0. for _ in range(len(dirs))]
     max_step = [0 for _ in range(len(dirs))]
-    states = [True for _ in range(6)] + [False for _ in range(6)]
-    # states = [True] + [False for _ in range(11)]
+    # states = [False for _ in range(6)] + [True for _ in range(6)]
+    states = None
     with tf.Session(config=config) as sess:
         sess.run(tf.global_variables_initializer())
         for i in range(100):
@@ -166,49 +176,25 @@ def main():
             print('tar:', print_ans(test_asent[0][print_id], vocab))
             for j in range(len(dirs)):
             # for j in range(1):
-                if not states[j]:
-                    continue
                 drt = model.test_sep(sess, j, dev_qsent[j], dev_qlen[j])
                 trt = model.test_sep(sess, j, test_qsent[j], test_qlen[j])
-                dev_score = int(eval(dev_asent[0], drt)*10000)/100
-                test_score = int(eval(test_asent[0], trt)*10000)/100
+                dev_score = int(eval(dev_asent[0], drt, vocab)*10000)/100
+                test_score = int(eval(test_asent[0], trt, vocab)*10000)/100
                 print('Model %d: pre:'%j, print_ans(trt[print_id], vocab), 'dev...bleu=', dev_score, '; test...bleu=', test_score)
                 if dev_score > max_bleu[j]:
                     max_bleu[j] = dev_score
                     max_step[j] = i
-                    model.save_model(sess, '../checkpoints/12_512_cn_same_arc_model_'+timestr+'_%d'%j, i, '_l%d'%j)
+                    model.save_model(sess, '../checkpoints/12_256_word_sep_model_'+timestr+'_%d'%j, i, '_l%d'%j)
             
     # prop = [i-0.2 for i in max_bleu]
-    with tf.variable_scope('6-12'):
-        model.build_ml_decoder(models=[i for i in range(12)], name='6-12')
-    
-    max_step = [2, 6, 2, 3, 3, 4, 5, 4, 4, 5, 6, 4]
-    max_bleu = [40.14, 40.36, 40.3, 41.08, 40.23, 39.98, 40.05, 39.99, 40.36, 40.59, 40.65, 40.87]
+    model.build_ml_decoder(models=[6,7,8,9,11], name='6-10,12')
+    timestr = '1523437524'
+    max_step = [5, 10, 5, 6, 7, 9, 7, 4, 6, 7, 8, 6]
+    max_bleu = [34.85, 36.29, 36.06, 36.19, 36.7, 37.68, 38.34, 39.26, 39.1, 38.7, 36.87, 38.86]
     with tf.Session(config=config) as sess:
         sess.run(tf.global_variables_initializer())
-        timestr = '1525067456'
-        for i in range(6):
-            # model.restore_model(sess, '../checkpoints/12_256_copynet_model_'+timestr+'_%d'%i, max_step[i], '_l%d'%i)
-            model.restore_model(sess, '../checkpoints/12_512_cn_same_arc_model_'+timestr+'_%d'%i, max_step[i], '_l%d'%i)
-        timestr2 = '1525067434'
-        for i in range(6, 12):
-           model.restore_model(sess, '../checkpoints/12_512_cn_same_arc_model_'+timestr2+'_%d'%i, max_step[i], '_l%d'%i)
-
-        # for j in range(len(dirs)):
-        #     # for j in range(1):
-        #         trt = model.test_sep(sess, j, train_qsent[j], train_qlen[j])
-        #         drt = model.test_sep(sess, j, dev_qsent[j], dev_qlen[j])
-        #         trt = model.test_sep(sess, j, test_qsent[j], test_qlen[j])
-
-        drt = model.test(sess, dev_qsent, dev_qlen)
-        trt = model.test(sess, test_qsent, test_qlen)
-        dev_score = int(eval(dev_asent[0], drt[0])*10000)/100
-        test_score = int(eval(test_asent[0], trt[0])*10000)/100
-        print('dev...bleu=', dev_score, '; test...bleu=', test_score)
-        print_id = np.random.randint(len(test_qsent[0]))
-        print('src:', print_ans(test_qsent[0][print_id], vocab))
-        print('tar:', print_ans(test_asent[0][print_id], vocab))
-        print('pre:', print_ans(trt[0][print_id], vocab))
+        for i in range(len(dirs)):
+            model.restore_model(sess, '../checkpoints/12_sep_model_'+timestr+'_%d'%i, max_step[i], '_l%d'%i)
 
         for i in range(100):
             drt = model.test(sess, dev_qsent, dev_qlen)
@@ -222,7 +208,3 @@ def main():
             print('pre:', print_ans(trt[0][print_id], vocab))
             print('train...(step2)')
             print(model.train_ml(sess, train_qsent, train_qlen, train_asent[0], train_alen[0]))
-
-    outlist = []
-    for i in trt[0]:
-        outlist.append(print_ans(i, vocab))
